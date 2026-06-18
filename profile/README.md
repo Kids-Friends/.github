@@ -263,3 +263,4 @@ git clone https://github.com/Kids-Friends/KF-FE.git
 설치/등록법은 **`KF-MCP` 저장소 README** 참고.
 
 </details>
+---
