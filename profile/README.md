@@ -1,7 +1,7 @@
 # 🤖 키즈프렌즈 시연 실행 매뉴얼
 
 > 각 단계는 토글(▸)을 눌러 펼칩니다. 단계 끝의 **✅ 성공 신호**를 꼭 확인하세요.
-> 모든 주소는 고정값 **`https://avengeful-shaunte-revolvingly.ngrok-free.dev`** 를 씁니다(이미 코드에 박혀 있어 보통 안 바꿔도 됨).
+> 모든 주소는 고정값 **`ngrok주소`** 를 씁니다(이미 코드에 박혀 있어 보통 안 바꿔도 됨).
 
 | 장비 | 역할 | 도구 | 켜두기 |
 |---|---|---|---|
@@ -88,7 +88,7 @@
      kf-be:
        proto: http
        addr: 8081
-       domain: avengeful-shaunte-revolvingly.ngrok-free.dev
+       domain: ngrok주소
    ```
 
 ### 1-7. IntelliJ로 프로젝트 열기
@@ -103,7 +103,7 @@
 
 ### 1-9. ✅ 성공 신호
 - IntelliJ 아래 콘솔에 `Started KfBeApplication` 그리고 `[ngrok] 공개 URL: https://avengeful-...` 가 보임.
-- 웹 브라우저에서 **`https://avengeful-shaunte-revolvingly.ngrok-free.dev/api/health`** 열면 에러 없이 응답이 보임.
+- 웹 브라우저에서 **`ngrok주소/api/health`** 열면 에러 없이 응답이 보임.
 
 > 🛟 ngrok이 안 뜨면: 명령창에서 `ngrok config add-authtoken <토큰>` 한 번 실행 후 서버 재시작.
 
@@ -141,7 +141,7 @@ pip install -r requirements.txt
 
 ### 2-5. 서버 주소 알려주기 (중요)
 ```bash
-export KF_BE_URL="https://avengeful-shaunte-revolvingly.ngrok-free.dev"
+export KF_BE_URL="ngrok주소"
 export KF_ROBOT_ID="TEMI_01"
 ```
 > 이걸 안 넣으면 라즈베리파이가 자기 자신(localhost)으로 잘못 보냅니다.
@@ -157,7 +157,7 @@ export KF_ROBOT_ID="TEMI_01"
   ```
 
 ### 2-7. ✅ 성공 신호
-- 터미널에 `백엔드 전송 대상: https://avengeful-...ngrok-free.dev/api/sensor-events (robotId=TEMI_01)` 출력.
+- 터미널에 `백엔드 전송 대상: ngrok주소/api/sensor-events (robotId=TEMI_01)` 출력.
 
 </details>
 
@@ -179,7 +179,7 @@ git clone https://github.com/Kids-Friends/KF-FE.git
 3. ⚠️ **"Upgrade Gradle/AGP" 같은 권유 창이 뜨면 반드시 거절**(Don't upgrade / Don't remind me). 버전을 바꾸면 빌드가 깨집니다.
 
 ### 3-3. 서버 주소 확인 (보통 그대로)
-- 기본값이 고정 주소 `https://avengeful-shaunte-revolvingly.ngrok-free.dev/` 로 이미 박혀 있어 **수정 불필요**.
+- 기본값이 고정 주소 `ngrok주소` 로 이미 박혀 있어 **수정 불필요**.
 - 혹시 다른 주소를 써야 하면 두 곳을 같은 주소로 바꿉니다:
   - `app/src/main/java/com/kidsFriend/global/config/AppConfig.java` 의 `DEFAULT_BASE_URL`
   - `app/build.gradle` 의 `buildConfigField ... "API_BASE_URL" ...`
@@ -217,7 +217,7 @@ git clone https://github.com/Kids-Friends/KF-FE.git
 <details>
 <summary>✅ 5. 최종 점검표</summary>
 
-- [ ] `https://avengeful-shaunte-revolvingly.ngrok-free.dev/api/health` 정상 응답
+- [ ] `ngrok주소/api/health` 정상 응답
 - [ ] IntelliJ 콘솔에 `Started KfBeApplication` + ngrok URL
 - [ ] 라즈베리파이 터미널에 "백엔드 전송 대상: …ngrok…/api/sensor-events"
 - [ ] 테미 화면에 대기 안내문
