@@ -26,6 +26,8 @@
 
 </details>
 
+---
+
 <details>
 <summary>🧠 용어 한 줄 사전</summary>
 
@@ -210,6 +212,8 @@ git clone https://github.com/Kids-Friends/KF-FE.git
 
 </details>
 
+---
+
 <details>
 <summary>✅ 5. 최종 점검표</summary>
 
@@ -220,6 +224,8 @@ git clone https://github.com/Kids-Friends/KF-FE.git
 - [ ] "친구야" 부르면 반응 + 하단 자막
 
 </details>
+
+---
 
 <details>
 <summary>🆘 6. 문제 해결</summary>
@@ -237,6 +243,8 @@ git clone https://github.com/Kids-Friends/KF-FE.git
 
 </details>
 
+---
+
 <details>
 <summary>🔌 7. 시연 종료(끄기)</summary>
 
@@ -245,6 +253,8 @@ git clone https://github.com/Kids-Friends/KF-FE.git
 3. 테미: 앱 그대로 둬도 됨.
 
 </details>
+
+---
 
 <details>
 <summary>⚙️ (선택) 8. AI로 시연 자동 제어 — KF-MCP</summary>
