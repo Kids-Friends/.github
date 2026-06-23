@@ -1,266 +1,396 @@
-# 🤖 키즈프렌즈 시연 실행 매뉴얼
+<div align="center">
 
-> 각 단계는 토글(▸)을 눌러 펼칩니다. 단계 끝의 **✅ 성공 신호**를 꼭 확인하세요.
-> 모든 주소는 고정값 **`ngrok주소`** 를 씁니다(이미 코드에 박혀 있어 보통 안 바꿔도 됨).
+# 🤖 Kids-Friends
 
-| 장비 | 역할 | 도구 | 켜두기 |
+### 키즈카페를 위한 테미(Temi) 안내로봇 통합 프로젝트
+**놀이 · 대화 · 안전을 하나의 로봇으로.**
+
+아이가 화면을 터치하거나 말을 걸면, 로봇이 놀이/안내 화면으로 바뀌고
+캐릭터 표정과 귀여운 목소리로 응대합니다. 미세먼지·화재 같은 위험도 스스로 감지해 알립니다.
+
+![Android](https://img.shields.io/badge/App-Android%20(Java)-3DDC84?logo=android&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Server-Spring%20Boot%203.5-6DB33F?logo=springboot&logoColor=white)
+![React](https://img.shields.io/badge/Web-React%20%2B%20Vite-61DAFB?logo=react&logoColor=black)
+![Raspberry Pi](https://img.shields.io/badge/HW-Raspberry%20Pi-A22846?logo=raspberrypi&logoColor=white)
+![Arduino](https://img.shields.io/badge/HW-Arduino%20Mega-00979D?logo=arduino&logoColor=white)
+![AI](https://img.shields.io/badge/AI-Groq%20LLaMA%203.1-F55036?logo=meta&logoColor=white)
+
+</div>
+
+---
+
+## 📑 목차
+
+- [무엇을 만드나요?](#-무엇을-만드나요)
+- [시스템 한눈에 보기](#-시스템-한눈에-보기)
+- [레포지토리 지도](#-레포지토리-지도)
+- [레포별 상세 설명](#-레포별-상세-설명) ← 토글
+- [핵심 기능 5종 + 안전](#-핵심-기능-5종--안전) ← 토글
+- [데이터 흐름 & 통신 규격](#-데이터-흐름--통신-규격) ← 토글
+- [빠른 시작 (전체 실행 순서)](#-빠른-시작-전체-실행-순서) ← 토글
+- [기술 스택 총정리](#-기술-스택-총정리) ← 토글
+- [개발 규칙 & 컨벤션](#-개발-규칙--컨벤션) ← 토글
+- [보안 & 공개(public) 전환 전 체크](#-보안--공개public-전환-전-체크) ← 토글
+- [후배들에게 — 학습 가이드](#-후배들에게--학습-가이드) ← 토글
+
+---
+
+## 🎯 무엇을 만드나요?
+
+**Kids-Friends**는 키즈카페에 배치된 **테미(Temi) 로봇** 위에서 동작하는 안내·놀이 서비스입니다.
+하나의 로봇이 아래를 모두 합니다.
+
+- 🗣️ **대화** — 아이가 캐릭터 친구에게 "전화"를 걸면, 서버의 AI가 친근한 반말로 답합니다.
+- 🎮 **놀이** — 사진 찍기, O/X 안전 퀴즈, 카페 길 안내.
+- 🛡️ **안전** — 미세먼지를 실시간으로 알려주고, 화재가 감지되면 즉시 비상 안내를 합니다.
+
+이 프로젝트는 여러 분야(앱·서버·하드웨어·웹)를 한 번에 경험할 수 있어, **로봇 수업의 실습 교보재**로도 쓰입니다.
+
+---
+
+## 🗺️ 시스템 한눈에 보기
+
+5개의 독립 레포가 모여 하나의 로봇을 움직입니다.
+
+```
+        ┌──────────────────────────┐
+        │     아이 / 운영자         │
+        └────────────┬─────────────┘
+                     │ 터치 · 음성
+                     ▼
+   ┌─────────────────────────────────┐        ┌──────────────────────┐
+   │           KF-FE                  │        │        KF_WEB         │
+   │   테미 로봇 안드로이드 앱          │        │     관리자 웹(데모)    │
+   │   (얼굴 · 표정 · 음성 · 화면)      │        │   대시보드 · 로그 보기 │
+   └───────▲───────────────┬─────────┘        └───────────▲──────────┘
+           │ WebSocket      │ AI 질문(REST)               │ REST
+           │ (센서 방송)     ▼                             │
+   ┌───────┴─────────────────────────────────────────────┴──────────┐
+   │                          KF-BE                                   │
+   │      Spring Boot 서버  ·  AI 대화 생성  ·  센서 수신/중계         │
+   └───────────────────────────▲────────────────────────────────────┘
+                               │ 센서값 (HTTP POST /api/sensor-events)
+              ┌────────────────┴─────────────────┐
+              │                                   │
+   ┌──────────┴───────────┐          ┌────────────┴───────────┐
+   │        KF-HW          │  ⟷ 대체  │         KF_AD           │
+   │   라즈베리파이 센서허브 │  (고장 시) │   아두이노 센서허브(백업) │
+   └──────────────────────┘          └────────────────────────┘
+     미세먼지·화재·거리·비전              동일 센서를 아두이노로
+```
+
+> 💡 **핵심 흐름**
+> 1. 하드웨어(**KF-HW** 또는 **KF_AD**)가 센서값을 **KF-BE**로 보냄
+> 2. **KF-BE**가 WebSocket으로 **KF-FE**(앱)에 실시간 방송
+> 3. 아이가 질문하면 **KF-FE → KF-BE(AI) → KF-FE**로 답이 돌아옴
+> 4. 운영자는 **KF_WEB**에서 현황을 봄
+
+---
+
+## 📦 레포지토리 지도
+
+| 레포 | 역할 | 한 줄 설명 | 주요 기술 |
 |---|---|---|---|
-| 컴퓨터 A | 서버(두뇌) | **IntelliJ** | ✅ |
-| 라즈베리파이 | 센서/카메라 | **터미널(리눅스)** | ✅ |
-| 테미 로봇 | 시연 본체 | (앱 설치돼 단독 실행) | ✅ |
-| 컴퓨터 B | 테미에 앱 설치 | **Android Studio** | 설치 후 꺼도 됨 |
+| **[KF-FE](https://github.com/Kids-Friends/KF-FE)** | 📱 앱 | 테미 로봇 위에서 도는 안드로이드 앱(얼굴·표정·음성·화면) | Android · Java · Temi SDK |
+| **[KF-BE](https://github.com/Kids-Friends/KF-BE)** | 🧠 서버 | AI 대화 생성 + 센서 수신/중계 허브 | Spring Boot · Java 17 · Groq |
+| **[KF-HW](https://github.com/Kids-Friends/KF-HW)** | 📡 하드웨어 | 라즈베리파이 센서 허브(미세먼지·화재·거리·비전) | Python · 라즈베리파이 |
+| **[KF_AD](https://github.com/Kids-Friends/KF_AD)** | 🔌 하드웨어(백업) | 라파 고장 시 대체하는 아두이노 센서 허브 | Arduino · Mega 2560 |
+| **[KF_WEB](https://github.com/Kids-Friends/KF_WEB)** | 🖥️ 웹 | 운영자용 관리자 대시보드(현재 목업 데모) | React · Vite |
+
+> ⚠️ 레포 이름 표기 주의: `KF-FE/KF-BE/KF-HW`는 **하이픈**, `KF_AD/KF_WEB`은 **언더스코어**입니다.
 
 ---
 
-<details>
-<summary>📦 0. 시작 전 — 각 컴퓨터에 깔 프로그램</summary>
+## 🔍 레포별 상세 설명
 
-- **컴퓨터 A (서버)**: JDK 17, MySQL, ngrok, Git, IntelliJ IDEA
-  - JDK 17: https://adoptium.net (Temurin 17)
-  - MySQL: https://dev.mysql.com/downloads/installer/
-  - ngrok: https://ngrok.com/download
-  - IntelliJ: https://www.jetbrains.com/idea/ (Community 무료판으로 충분)
-- **컴퓨터 B (앱 설치)**: Android Studio, USB 케이블
-  - Android Studio: https://developer.android.com/studio
-- **라즈베리파이**: 파이썬3(기본 내장), Git (없으면 `sudo apt install git`)
+<details>
+<summary><b>📱 KF-FE — 테미 로봇 안드로이드 앱 (클릭)</b></summary>
+
+<br>
+
+아이가 직접 만지고 말을 거는 **로봇의 얼굴이자 몸**입니다. 테미 로봇 위에서 실행됩니다.
+
+- **하는 일**: 화면 터치/음성 명령 → 놀이·안내 화면 전환 → 캐릭터 표정 + TTS로 응대.
+- **서버 연동**: [KF-BE](https://github.com/Kids-Friends/KF-BE)와 ngrok 주소로 통신(REST + WebSocket).
+- **⚠️ 버전 동결(절대 변경 금지)**: `Gradle 8.1 / AGP 8.1.0 / Java 11 / compileSdk 33`, Temi SDK `1.131.4`.
+- **핵심 위치**: `MainActivity.java`(모든 대화/표정 흐름의 중심), `domain/`(기능별 화면), `docs/`(디자인 기준·표정 에셋).
+- **실행**: Android Studio에서 열고 ▶ Run (테미 실기기 또는 에뮬레이터). 먼저 KF-BE가 켜져 있어야 함.
+
+**기술**: Android(Java) · Temi SDK · Retrofit2 + OkHttp(WebSocket) · Media3(ExoPlayer)
+
+</details>
+
+<details>
+<summary><b>🧠 KF-BE — 백엔드 서버 (클릭)</b></summary>
+
+<br>
+
+모든 데이터가 거쳐 가는 **두뇌**입니다. 딱 두 가지를 합니다.
+
+1. **AI 대화 만들기** — 아이 질문을 Groq(`llama-3.1-8b-instant`)에 보내 뽀로로 친구처럼 반말로 답하는 문장 생성.
+2. **센서 신호 중계** — 하드웨어가 올린 센서값을 받아 앱이 듣는 WebSocket 채널로 방송.
+
+| 종류 | 주소 | 설명 |
+|---|---|---|
+| 헬스체크 | `GET /api/health` | 서버 생존 확인 |
+| AI 대화 | `POST /api/chat/ai` | 질문 → AI 답변 |
+| 센서 수신 | `POST /api/sensor-events` | HW/아두이노 입구 |
+| 센서 방송 | `WebSocket /ws/sensors` | 앱이 실시간 수신 |
+
+- **포트 8080**, 부팅 시 **ngrok 고정 도메인** 자동 실행. API 문서는 `/swagger-ui.html`.
+- **설정**: `.env`에 Groq 키(`AI_API_KEY=gsk_...`) 주입. 센서값은 저장 없이 즉시 방송(휘발성, DB 불필요).
+
+**기술**: Java 17 · Spring Boot 3.5.14 · Spring AI(Groq) · Spring WebSocket · springdoc
+
+</details>
+
+<details>
+<summary><b>📡 KF-HW — 라즈베리파이 센서 허브 (클릭)</b></summary>
+
+<br>
+
+로봇의 **감각기관**. 라즈베리파이에 연결된 센서값을 읽어 서버로 보냅니다.
+
+| 센서 | 감지 | 이벤트 |
+|---|---|---|
+| CubeEye S111DU (ToF) | 장애물/접근 | `OBSTACLE_DETECTED` |
+| Cubic PM2008 | 미세먼지(PM2.5) | `AIR_QUALITY`, `DUST_HIGH` |
+| 화재경보기(GPIO) | 불/연기 | `FIRE_ALARM` |
+| WonderMV(비전) | 얼굴·O/X 포즈 | `CHILD_DETECTED`, `QUIZ_ANSWER` |
+| USB 웹캠(OpenCV) | 얼굴 | `CHILD_DETECTED` |
+
+- `src/main.py`는 **실제 라즈베리파이 + CubeEye SDK** 환경에서만 동작.
+- **PC 연습**은 `tests/mock_stream.py`로 가짜 데이터를 흘려 테스트.
+- 보안 하드닝됨: 과거 공개 MQTT 브로커 기본값 제거 → `localhost` + 환경변수.
+
+**기술**: Python 3 · CubeEye ToF SDK · OpenCV · pyserial · RPi.GPIO
+
+</details>
+
+<details>
+<summary><b>🔌 KF_AD — 아두이노 센서 허브(백업) (클릭)</b></summary>
+
+<br>
+
+> 📌 이름의 **AD = Arduino** (광고 아님!)
+
+라즈베리파이([KF-HW](https://github.com/Kids-Friends/KF-HW))가 고장났을 때 **아두이노 Mega 2560**으로 동일한 센서들을 대체합니다. 보내는 데이터 형식이 같아 서버/앱은 구분할 필요가 없습니다.
+
+- **부품**: Arduino Mega 2560 · W5500 이더넷 · PM2008 · 화재경보기 · HC-SR04(ToF 대체) · WonderMV.
+- **핵심 특징 — `MOCK_MODE`**: 센서를 일부만 꽂아도 데모가 안 끊김.
+  - `MOCK_AUTO`(기본): 연결된 센서는 실제값, 응답 없는 센서만 자동 가짜값.
+  - `MOCK_ON`: 전부 가짜값(보드만으로 QA). `MOCK_OFF`: 실제값만.
+- **설치**: `arduino_setup.txt`에 배선·설치·문제해결 정리. ArduinoJson 라이브러리 필요.
+
+**기술**: Arduino(C/C++) · Mega 2560 · W5500 Ethernet · ArduinoJson
+
+</details>
+
+<details>
+<summary><b>🖥️ KF_WEB — 관리자 웹 (클릭)</b></summary>
+
+<br>
+
+키즈카페 운영자가 **로봇을 한눈에 관리**하는 대시보드입니다.
+
+- **기능**: 통합 대시보드(회원·로봇·호출 현황 + 그래프), 회원/로봇 관리, 호출·채팅 로그, 설정.
+- 📌 **현재는 시연용 데모** — 실제 서버/DB 없이 **목업 데이터**로 동작(서버 안 켜도 화면 확인 가능).
+- **실행**: `npm install` → `npm run dev` → `http://localhost:4173/`.
+
+**기술**: React · Vite · Recharts · Framer Motion · Axios
 
 </details>
 
 ---
 
-<details>
-<summary>🧠 용어 한 줄 사전</summary>
+## 🎬 핵심 기능 5종 + 안전
 
-- **터미널/명령창**: 명령어 입력하는 창 (Windows=PowerShell, 라즈베리파이=Terminal)
-- **클론(clone)**: 깃허브 코드를 내 컴퓨터로 내려받기
-- **ngrok**: 내 서버를 인터넷 주소로 열어주는 도구
-- **adb**: 컴퓨터에서 안드로이드(테미)에 앱을 설치하는 통로
+<details>
+<summary><b>시연 시나리오 전체 보기 (클릭)</b></summary>
+
+<br>
+
+각 기능 옆 라벨은 구현 방식입니다 — **[가라]** 스크립트 시연 · **[AI]** 실제 AI 호출 · **[실제]** 센서 파이프라인 실연동.
+
+| # | 기능 | 방식 | 동작 |
+|---|---|---|---|
+| 1 | 📷 **사진 찍기** | [가라] | "사진 찍자" → 3초 카운트다운 촬영 → 프레임/필터 |
+| 2 | 🎮 **게임 하기** | [가라] | O/X 안전 퀴즈 (예: "미끄럼틀에서 친구 밀어도 될까?") |
+| 3 | 📞 **친구에게 전화하기** | [AI] | 캐릭터 선택 → 통화 → 아이 질문을 `POST /api/chat/ai`로 보내 친구 말투로 답함 |
+| 4 | 🗺️ **카페 안내** | [가라] | 지도에서 존 터치 → 로봇이 자율주행으로 이동 |
+| 5 | 🌫️ **공기 확인** | [실제] | `/ws/sensors`로 받은 실시간 PM2.5 → 좋음/보통/나쁨 안내 |
+| + | 🔥 **화재경보** | [실제] | `FIRE_ALARM(DETECTED)` 수신 시 즉시 "애들아 불이났어! 비상!" + 비상화면 |
 
 </details>
 
 ---
 
-<details>
-<summary>🖥️ 1. 컴퓨터 A — 서버(BE)를 IntelliJ로 켜기 【상세】</summary>
-
-### 1-1. JDK 17 설치
-1. https://adoptium.net 에서 **Temurin 17 (LTS)** 다운로드 → 설치(다음만 누르면 됨).
-
-### 1-2. MySQL 설치 + 빈 데이터베이스 만들기
-1. MySQL Installer로 MySQL Server 설치. 설치 중 **root 비밀번호**를 정합니다(예: `1111`).
-2. 설치된 **MySQL Command Line Client** 실행 → root 비밀번호 입력 → 아래 한 줄 입력:
-   ```sql
-   CREATE DATABASE kf_db CHARACTER SET utf8mb4;
-   ```
-   > 표(테이블)는 서버가 켜질 때 자동으로 만들어집니다(Flyway). 빈 DB만 있으면 됩니다.
-
-### 1-3. ngrok 설치 + 토큰 등록
-1. https://ngrok.com 가입 → https://dashboard.ngrok.com/get-started/your-authtoken 에서 **토큰(authtoken)** 복사.
-2. ngrok 다운로드 후 설치. (Windows는 `ngrok.exe`를 적당한 폴더에 두고 PATH 추가 또는 그 폴더에서 실행)
-
-### 1-4. 코드 내려받기
-1. 명령창(PowerShell)에서:
-   ```powershell
-   git clone https://github.com/Kids-Friends/KF-BE.git
-   cd KF-BE
-   ```
-
-### 1-5. `.env` 파일 만들기 (비밀값)
-1. `KF-BE` 폴더의 **`.env.example`** 을 복사해 같은 폴더에 **`.env`** 로 이름 변경.
-2. 메모장으로 `.env`를 열어 값 채우기:
-   ```env
-   SERVER_PORT=8081
-   NGROK_AUTHTOKEN=여기에_ngrok_토큰
-   DB_URL=jdbc:mysql://localhost:3306/kf_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-   DB_USERNAME=root
-   DB_PASSWORD=내가_정한_MySQL_비밀번호
-   AI_API_KEY=여기에_Groq_키
-   ```
-   > Groq 키 발급: https://console.groq.com/keys (무료, `gsk_...` 형태)
-
-### 1-6. `ngrok.yml` 파일 만들기 (고정 주소용)
-1. `KF-BE` 폴더의 **`ngrok.example.yml`** 을 복사해 **`ngrok.yml`** 로 이름 변경.
-2. 메모장으로 열어 토큰만 채우기(도메인은 그대로 두기):
-   ```yaml
-   version: "2"
-   authtoken: 여기에_ngrok_토큰
-   tunnels:
-     kf-be:
-       proto: http
-       addr: 8081
-       domain: ngrok주소
-   ```
-
-### 1-7. IntelliJ로 프로젝트 열기
-1. IntelliJ 실행 → **Open** → `KF-BE` 폴더 선택 → **Trust Project**.
-2. 오른쪽 아래에 "Gradle 동기화" 진행 막대가 끝날 때까지 기다립니다(처음엔 몇 분 걸림).
-3. 상단 메뉴 **File → Project Structure → Project** 에서 **SDK = 17** 인지 확인(아니면 17로 선택).
-
-### 1-8. 서버 실행
-1. 왼쪽 파일 목록에서 `src/main/java/com/kidsfriends/` → **`KfBeApplication`** 파일 더블클릭.
-2. 코드 안 `public class KfBeApplication` 왼쪽의 **초록색 ▶ 버튼** 클릭 → **Run 'KfBeApplication'**.
-   > `.env`는 자동으로 읽힙니다(따로 설정 불필요).
-
-### 1-9. ✅ 성공 신호
-- IntelliJ 아래 콘솔에 `Started KfBeApplication` 그리고 `[ngrok] 공개 URL: https://avengeful-...` 가 보임.
-- 웹 브라우저에서 **`ngrok주소/api/health`** 열면 에러 없이 응답이 보임.
-
-> 🛟 ngrok이 안 뜨면: 명령창에서 `ngrok config add-authtoken <토큰>` 한 번 실행 후 서버 재시작.
-
-</details>
-
----
+## 🔌 데이터 흐름 & 통신 규격
 
 <details>
-<summary>🍓 2. 라즈베리파이 — 센서(HW) 켜기 【상세】</summary>
+<summary><b>센서 이벤트 / API 규격 보기 (클릭)</b></summary>
 
-> 컴퓨터 A의 서버가 **먼저 켜져 있어야** 합니다(1단계 완료 후 진행).
+<br>
 
-### 2-1. 터미널 열고 준비
-```bash
-sudo apt update
-sudo apt install -y git python3-venv python3-pip
+**① 하드웨어 → 서버** (`POST /api/sensor-events`)
+```json
+{
+  "robotId": "TEMI_01",
+  "eventType": "AIR_QUALITY",
+  "payload": { "pm25": 23.0, "unit": "ug/m3", "grade": "NORMAL" }
+}
 ```
 
-### 2-2. 코드 내려받기
-```bash
-git clone https://github.com/Kids-Friends/KF-HW.git
-cd KF-HW
+**② 서버 → 앱** (`WebSocket /ws/sensors` 방송, envelope)
+```json
+{ "robotId": "TEMI_01", "eventType": "AIR_QUALITY", "payload": { ... }, "receivedAt": "2026-06-23T12:00:00" }
 ```
 
-### 2-3. 파이썬 가상환경 + 라이브러리 설치
-```bash
-python3 -m venv .venv
-source .venv/bin/activate          # 프롬프트 앞에 (.venv) 가 붙으면 성공
-pip install -r requirements.txt
-```
+**주요 eventType**
 
-### 2-4. 카메라 SDK (실제 ToF 카메라 쓸 때만)
-- CubeEye S111DU SDK를 `/home/pi/CubeEye2.0_SDK/release/python` 에 둡니다.
-- 카메라/SDK가 아직 없으면 이 단계는 건너뛰고 2-6의 **연습용 실행**을 쓰세요.
-
-### 2-5. 서버 주소 알려주기 (중요)
-```bash
-export KF_BE_URL="ngrok주소"
-export KF_ROBOT_ID="TEMI_01"
-```
-> 이걸 안 넣으면 라즈베리파이가 자기 자신(localhost)으로 잘못 보냅니다.
-
-### 2-6. 실행
-- 실제 카메라/센서:
-  ```bash
-  python src/main.py
-  ```
-- 카메라 없이 연습(가짜 센서값):
-  ```bash
-  python tests/mock_stream.py
-  ```
-
-### 2-7. ✅ 성공 신호
-- 터미널에 `백엔드 전송 대상: ngrok주소/api/sensor-events (robotId=TEMI_01)` 출력.
-
-</details>
-
----
-
-<details>
-<summary>📱 3. 테미 로봇 — 앱(FE)을 Android Studio로 설치 【상세】</summary>
-
-> 한 번만 설치하면 됩니다. 설치 후 컴퓨터 B는 꺼도 됩니다.
-
-### 3-1. 코드 내려받기
-```powershell
-git clone https://github.com/Kids-Friends/KF-FE.git
-```
-
-### 3-2. Android Studio로 열기
-1. Android Studio 실행 → **Open** → `KF-FE` 폴더 선택.
-2. Gradle 동기화가 끝날 때까지 기다립니다.
-3. ⚠️ **"Upgrade Gradle/AGP" 같은 권유 창이 뜨면 반드시 거절**(Don't upgrade / Don't remind me). 버전을 바꾸면 빌드가 깨집니다.
-
-### 3-3. 서버 주소 확인 (보통 그대로)
-- 기본값이 고정 주소 `ngrok주소` 로 이미 박혀 있어 **수정 불필요**.
-- 혹시 다른 주소를 써야 하면 두 곳을 같은 주소로 바꿉니다:
-  - `app/src/main/java/com/kidsFriend/global/config/AppConfig.java` 의 `DEFAULT_BASE_URL`
-  - `app/build.gradle` 의 `buildConfigField ... "API_BASE_URL" ...`
-
-### 3-4. 테미를 컴퓨터에 연결
-1. 테미 화면에서 **설정 → 정보(About)** 의 빌드번호를 여러 번 눌러 **개발자 옵션** 활성화.
-2. **개발자 옵션 → USB 디버깅 ON**.
-3. 테미와 컴퓨터 B를 **USB 케이블**로 연결 → 테미에 뜨는 "USB 디버깅 허용?" → **허용**.
-
-### 3-5. 설치 실행
-1. Android Studio 상단 기기 선택칸에 **테미(temi)** 가 보이는지 확인.
-2. **초록색 ▶(Run)** 버튼 클릭 → 빌드 후 테미에 자동 설치·실행.
-
-### 3-6. ✅ 성공 신호
-- 테미 화면에 캐릭터 얼굴 + **`"친구야" 하고 부르거나 화면을 터치해줘!`** 안내가 보임.
-
-</details>
-
----
-
-<details>
-<summary>▶️ 4. 시연 진행</summary>
-
-테미 앞에서:
-1. **"친구야"** 라고 부른다 → 대화 시작.
-2. 말해본다: "퀴즈 풀고 싶어" / "미끄럼틀 어디 있어?" / "회원 등록하고 싶어" / "사진 찍어줘"
-3. 아이가 테미 앞에 다가가면(또는 라즈베리파이 센서 작동 시) 테미가 인사·반응.
-
-✅ 말하는 동안 화면 **아래 실시간 자막**이 뜨고, 테미가 음성으로 답하면 정상.
-
-</details>
-
----
-
-<details>
-<summary>✅ 5. 최종 점검표</summary>
-
-- [ ] `ngrok주소/api/health` 정상 응답
-- [ ] IntelliJ 콘솔에 `Started KfBeApplication` + ngrok URL
-- [ ] 라즈베리파이 터미널에 "백엔드 전송 대상: …ngrok…/api/sensor-events"
-- [ ] 테미 화면에 대기 안내문
-- [ ] "친구야" 부르면 반응 + 하단 자막
-
-</details>
-
----
-
-<details>
-<summary>🆘 6. 문제 해결</summary>
-
-| 증상 | 조치 |
+| eventType | payload 예시 |
 |---|---|
-| `/api/health` 안 열림 | 컴퓨터 A 서버 실행 중인지, ngrok 콘솔 로그 확인 |
-| 모든 API가 404 | ngrok 터널이 안 떴음 → `ngrok config add-authtoken <토큰>` 후 서버 재시작 |
-| DB 오류로 서버 안 켜짐 | MySQL 켜졌는지, `.env`의 비밀번호가 MySQL과 같은지, `kf_db` 만들었는지 |
-| AI 답변이 에러 | `.env`의 `AI_API_KEY`(Groq `gsk_...`) 확인 |
-| 라즈베리파이가 localhost로 보냄 | `export KF_BE_URL=...` 안 했음 → 다시 설정 후 재실행 |
-| 테미가 서버 못 붙음 | 테미 와이파이 연결 확인, 앱 주소가 고정 ngrok인지 확인 |
-| "친구야" 인식 안 됨 | 소음 줄이기, 테미 시스템 언어 **한국어** 확인 |
-| 음성 멈춤 | 테미 화면 한 번 터치 또는 앱 재시작 |
+| `AIR_QUALITY` | `{ "pm25": 23.0, "grade": "NORMAL" }` (약 15초 주기) |
+| `DUST_HIGH` | `{ "pm25": 88.0, "grade": "BAD" }` (임계 초과 시) |
+| `FIRE_ALARM` | `{ "status": "DETECTED" }` 또는 `"CLEARED"` |
+| `OBSTACLE_DETECTED` | `{ "distance_cm": 45, "direction": "FRONT" }` |
+| `CHILD_DETECTED` | `{ "source": "wondermv" }` |
+| `QUIZ_ANSWER` | `{ "answer": "O" }` |
+
+**미세먼지 등급 (환경부 PM2.5 기준)**
+
+| PM2.5 (㎍/㎥) | 등급 |
+|---|---|
+| ≤ 15 | `GOOD` (좋음) |
+| 16 ~ 35 | `NORMAL` (보통) |
+| ≥ 36 | `BAD` (나쁨) |
+| ≥ 75 | 추가로 `DUST_HIGH` 경보 |
 
 </details>
 
 ---
+
+## 🚀 빠른 시작 (전체 실행 순서)
 
 <details>
-<summary>🔌 7. 시연 종료(끄기)</summary>
+<summary><b>처음부터 끝까지 실행하기 (클릭)</b></summary>
 
-1. 컴퓨터 A: IntelliJ의 빨간 ■(Stop) 버튼 → 서버 종료.
-2. 라즈베리파이: 터미널에서 `Ctrl + C`.
-3. 테미: 앱 그대로 둬도 됨.
+<br>
+
+**1) 서버 켜기 — [KF-BE](https://github.com/Kids-Friends/KF-BE)**
+```bash
+# .env 에 Groq 키 넣기:  AI_API_KEY=gsk_발급받은키
+./gradlew bootRun           # (Windows) .\gradlew.bat bootRun
+# 확인:  http://localhost:8080/api/health  → OK
+```
+
+**2) 센서 보내기 — [KF-HW](https://github.com/Kids-Friends/KF-HW)(라파) 또는 [KF_AD](https://github.com/Kids-Friends/KF_AD)(아두이노)**
+```bash
+# 라즈베리파이
+pip install -r requirements.txt
+python src/main.py
+# (PC 연습)  python tests/mock_stream.py
+```
+
+**3) 앱 실행 — [KF-FE](https://github.com/Kids-Friends/KF-FE)**
+> Android Studio에서 열고 ▶ Run (테미 실기기/에뮬레이터). 서버 주소(ngrok)는 `ApiConfig`에서 확인.
+
+**4) 관리자 웹 — [KF_WEB](https://github.com/Kids-Friends/KF_WEB)**
+```bash
+npm install && npm run dev   # → http://localhost:4173/
+```
 
 </details>
 
 ---
+
+## 🧰 기술 스택 총정리
 
 <details>
-<summary>⚙️ (선택) 8. AI로 시연 자동 제어 — KF-MCP</summary>
+<summary><b>스택 한 번에 보기 (클릭)</b></summary>
 
-개발자가 Claude/Gemini로 시연을 직접 조종·점검하고 싶을 때만 사용. 일반 시연엔 불필요.
-설치/등록법은 **`KF-MCP` 저장소 README** 참고.
+<br>
+
+| 영역 | 스택 |
+|---|---|
+| **앱** | Android (Java), Temi SDK 1.131.4, Retrofit2 + OkHttp(WebSocket), Media3 |
+| **서버** | Java 17, Spring Boot 3.5.14, Spring AI(Groq · OpenAI 호환), WebSocket, springdoc |
+| **AI** | Groq `llama-3.1-8b-instant` (텍스트, 반말 페르소나) |
+| **하드웨어(라파)** | Python 3, CubeEye ToF SDK, OpenCV, pyserial, RPi.GPIO |
+| **하드웨어(아두이노)** | Arduino Mega 2560, W5500 Ethernet, ArduinoJson |
+| **웹** | React 18, Vite 5, Recharts, Framer Motion, Axios |
+| **인프라** | ngrok(고정 도메인 터널), 포트 8080 |
 
 </details>
+
 ---
+
+## 📐 개발 규칙 & 컨벤션
+
+<details>
+<summary><b>반드시 지킬 규칙 (클릭)</b></summary>
+
+<br>
+
+- **레포는 각각 독립**입니다. 공통 부모 레포는 없습니다.
+- **버전 동결(KF-FE)**: `Gradle 8.1 / AGP 8.1.0 / Java 11 / compileSdk 33` — 변경 금지.
+- **보안 파일 커밋 금지**: `.env`, `ngrok.yml`, 키스토어 등은 절대 올리지 않습니다(각 `.gitignore`로 관리).
+- **AI 프로바이더는 Groq**: `application.yml`에 `openai`로 적혀 있어도 정상(= OpenAI 호환 프로토콜).
+- 커밋 메시지는 `feat:`, `fix:`, `docs:`, `chore:` 프리픽스 사용.
+
+</details>
+
+---
+
+## 🔐 보안 & 공개(public) 전환 전 체크
+
+<details>
+<summary><b>private → public 전 점검 항목 (클릭)</b></summary>
+
+<br>
+
+현재 레포는 **private**이며, 실제 API 키·토큰은 코드/히스토리에 **박혀 있지 않습니다**(.env 규율 양호).
+공개로 전환한다면 아래를 먼저 처리하세요.
+
+- [ ] **KF_WEB**: 관리자 비번 `admin1234`가 **과거 히스토리**에 남아 있음 → 재사용 금지(필요 시 히스토리 재작성). `VITE_*` 환경변수는 공개 JS 번들에 박힘 → 실인증 아님.
+- [ ] **KF-BE**: `/api/chat/ai` 무인증 + CORS `*` + 고정 ngrok 도메인 노출 → API 키/Origin 제한 또는 도메인 교체(Groq 쿼터 보호).
+- [ ] **KF-BE**: DB 비번 `1111` 하드코딩 제거 → 환경변수/강한 비번.
+- [ ] **KF_AD**: `.gitignore` 추가, 내부 IP/MAC을 예시값으로 치환.
+- [ ] **전체**: 공개 직전 `gitleaks`로 히스토리 최종 스캔.
+
+> ⚠️ **ngrok 터널은 레포가 private여도 인터넷에 열려 있습니다.** 시연할 때만 켜고 평소엔 끄세요.
+
+</details>
+
+---
+
+## 🎓 후배들에게 — 학습 가이드
+
+<details>
+<summary><b>어디서부터 보면 좋을까? (클릭)</b></summary>
+
+<br>
+
+이 프로젝트는 **앱 · 서버 · 하드웨어 · 웹**을 한 번에 경험할 수 있는 좋은 교보재입니다.
+관심 분야부터 시작하세요. 각 레포의 `README.md`에 따라하기식 실행법이 있습니다.
+
+| 관심 분야 | 추천 시작 레포 |
+|---|---|
+| 앱/안드로이드가 궁금하면 | [KF-FE](https://github.com/Kids-Friends/KF-FE) |
+| 서버/AI가 궁금하면 | [KF-BE](https://github.com/Kids-Friends/KF-BE) |
+| 센서/하드웨어가 궁금하면 | [KF-HW](https://github.com/Kids-Friends/KF-HW) → [KF_AD](https://github.com/Kids-Friends/KF_AD) |
+| 웹/프론트가 궁금하면 | [KF_WEB](https://github.com/Kids-Friends/KF_WEB) |
+
+**전체 흐름을 먼저 이해하고 싶다면** 위 [시스템 한눈에 보기](#-시스템-한눈에-보기)를 보고,
+**KF-BE → KF-HW → KF-FE** 순서로 데이터가 어떻게 흐르는지 따라가 보세요.
+
+</details>
+
+---
+
+<div align="center">
+
+**Kids-Friends** · 키즈카페 안내로봇 프로젝트
+아이의 새로운 친구이자, 가장 든든한 안전 지킴이 🤖
+
+</div>
